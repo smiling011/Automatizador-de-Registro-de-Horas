@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registro de horas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="deco" aria-hidden="true"></div>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="lazo" id="lazo" title="Toca el lazo" aria-hidden="true">🎀</span>
+    <h1>Registro de horas</h1>
+    <p class="sub">Escribe tu bitácora una sola vez. De ahí salen Camaleom, PMO y la hoja de cálculo, listos para copiar ✨</p>
+  </header>
+
+  <div class="card" id="s1">
+    <h2>1. Bitácora <small>una línea por actividad: <span class="mono">07:30am - 08:30am | descripción</span>, con la fecha en una línea aparte</small></h2>
+    <textarea id="log" spellcheck="false" placeholder="20/11/2026&#10;07:30am - 08:30am | Resolución del incidente #IN514759 validando con Brandon"></textarea>
+    <div class="row">
+      <button class="pri" id="btnProc">Procesar 💖</button>
+      <button id="btnEj">Cargar ejemplo</button>
+      <button id="btnClr">Limpiar</button>
+      <span class="note" id="procMsg"></span>
+    </div>
+  </div>
+
+  <div id="s2"></div>
+  <div id="s3"></div>
+
+  <div class="card">
+    <details id="settings">
+      <summary>Ajustes 🎀</summary>
+      <div id="setBody"></div>
+    </details>
+  </div>
+  <p class="note foot">Todo se calcula en tu navegador. Los casos y ajustes se recuerdan en este navegador; la bitácora no se envía a ningún lado.</p>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

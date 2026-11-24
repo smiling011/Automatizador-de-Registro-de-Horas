@@ -1,0 +1,203 @@
+/* =====================================================
+   Registro de horas — tema Barbie
+   ===================================================== */
+:root{
+  --pink:#e0218a;        /* rosa Barbie */
+  --pink2:#ff4fa3;
+  --pink3:#ff9ccf;
+  --pink4:#ffd1e8;
+  --pink5:#fff0f7;
+  --bg:#fff0f7;
+  --card:#ffffff;
+  --ink:#4a1537;
+  --ink2:#9b5c7f;
+  --line:#ffc2e0;
+  --acc:#e0218a;
+  --accbg:#ffe0f0;
+  --warn:#a35a00;
+  --warnbg:#fff1cf;
+  --bad:#b3173f;
+  --badbg:#ffdbe5;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;color:var(--ink);font:14px/1.55 var(--sans);
+  background:
+    radial-gradient(circle at 12% 8%,#ffd1e8 0,transparent 38%),
+    radial-gradient(circle at 90% 18%,#ffc2e0 0,transparent 34%),
+    radial-gradient(circle at 20% 95%,#ffe0f0 0,transparent 40%),
+    linear-gradient(180deg,#fff0f7,#ffe4f2);
+  background-attachment:fixed;
+  min-height:100vh;
+}
+/* puntitos de fondo */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background-image:radial-gradient(#ff9ccf 1.2px,transparent 1.4px);
+  background-size:26px 26px;
+}
+.wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:22px 16px 70px}
+
+/* ---------- título ---------- */
+.hero{text-align:center;margin-bottom:22px;position:relative}
+.lazo{
+  display:inline-block;font-size:44px;cursor:pointer;user-select:none;
+  animation:balanceo 3s ease-in-out infinite;transform-origin:50% 80%;
+  filter:drop-shadow(0 4px 6px rgba(224,33,138,.35));
+}
+.lazo:hover{animation-duration:.6s}
+h1{
+  margin:0;font:400 44px/1.1 "Pacifico",cursive;
+  background:linear-gradient(90deg,#e0218a,#ff4fa3,#ff9ccf,#ff4fa3,#e0218a);
+  background-size:250% auto;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:brillo 6s linear infinite;
+  text-shadow:0 0 1px rgba(224,33,138,.15);
+}
+.sub{color:var(--ink2);margin:8px auto 0;max-width:620px}
+
+/* ---------- tarjetas ---------- */
+.card{
+  position:relative;background:var(--card);
+  border:2px solid var(--pink4);border-radius:22px;
+  padding:16px 18px;margin-bottom:16px;
+  box-shadow:0 6px 0 var(--pink4),0 14px 28px rgba(224,33,138,.12);
+  transition:transform .25s,box-shadow .25s;
+}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 0 var(--pink3),0 18px 32px rgba(224,33,138,.18)}
+.card::after{
+  content:"✦";position:absolute;top:10px;right:16px;color:var(--pink3);font-size:15px;
+  animation:titila 2.6s ease-in-out infinite;
+}
+.card h2{font-size:16px;font-weight:600;margin:0 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--pink)}
+.card h2 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+
+/* ---------- formularios ---------- */
+textarea{
+  width:100%;min-height:210px;font:13px/1.6 var(--mono);color:var(--ink);
+  background:var(--pink5);border:2px solid var(--pink4);border-radius:14px;padding:12px;resize:vertical;
+  transition:border-color .2s,box-shadow .2s;
+}
+input[type=text],select{
+  font:inherit;color:var(--ink);background:var(--pink5);
+  border:2px solid var(--pink4);border-radius:10px;padding:6px 10px;width:100%;
+  transition:border-color .2s,box-shadow .2s;
+}
+textarea:focus,input[type=text]:focus,select:focus{
+  outline:none;border-color:var(--pink2);box-shadow:0 0 0 4px rgba(255,79,163,.2);
+}
+input.miss{border-color:#ffb020;background:var(--warnbg)}
+input[type=checkbox]{accent-color:var(--pink);width:16px;height:16px}
+
+/* ---------- botones ---------- */
+button{
+  font:500 13px var(--sans);cursor:pointer;color:var(--pink);
+  background:#fff;border:2px solid var(--pink3);border-radius:999px;padding:6px 16px;
+  box-shadow:0 3px 0 var(--pink3);
+  transition:transform .12s,box-shadow .12s,background .2s,color .2s;
+}
+button:hover{background:var(--pink5);transform:translateY(-2px);box-shadow:0 5px 0 var(--pink3)}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--pink3)}
+button.pri{
+  color:#fff;border-color:var(--pink);font-weight:600;
+  background:linear-gradient(135deg,#ff4fa3,#e0218a);
+  box-shadow:0 3px 0 #a8125f,0 8px 16px rgba(224,33,138,.35);
+  position:relative;overflow:hidden;
+}
+button.pri:hover{background:linear-gradient(135deg,#ff6fb5,#e8309a);box-shadow:0 5px 0 #a8125f,0 12px 20px rgba(224,33,138,.4)}
+button.pri::after{
+  content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);
+  transform:skewX(-20deg);animation:destello 3.2s ease-in-out infinite;
+}
+button.sm{padding:2px 11px;font-size:12px;box-shadow:0 2px 0 var(--pink3)}
+
+/* ---------- piezas pequeñas ---------- */
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.chip{display:inline-block;border-radius:999px;padding:2px 11px;font-size:12px;background:var(--accbg);color:var(--pink);font-weight:600;border:1px solid var(--pink3)}
+.chip.w{background:var(--warnbg);color:var(--warn);border-color:#ffd27a}
+.chip.b{background:var(--badbg);color:var(--bad);border-color:#ff9db4}
+.note{color:var(--ink2);font-size:12px}
+.foot{text-align:center;margin-top:8px}
+.banner{background:var(--warnbg);color:var(--warn);border-radius:14px;padding:10px 14px;margin-bottom:12px;font-size:13px;border:1.5px dashed #ffc766}
+.banner.b{background:var(--badbg);color:var(--bad);border-color:#ff9db4}
+.mono{font-family:var(--mono);font-size:12.5px}
+
+/* ---------- tablas ---------- */
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px dashed var(--pink4);vertical-align:middle}
+th{font-weight:600;color:var(--pink);font-size:12px}
+tr:hover td{background:var(--pink5)}
+
+/* ---------- salidas por día ---------- */
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:14px}
+@media(max-width:800px){.grid2{grid-template-columns:1fr}h1{font-size:34px}}
+.box{border:2px solid var(--pink4);border-radius:16px;padding:12px 14px;background:linear-gradient(180deg,#fff,var(--pink5))}
+.box h3{font-size:14px;font-weight:600;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:6px;color:var(--pink)}
+.dayhead{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;margin:2px 0 12px}
+.dayhead b{font-size:17px;color:var(--pink);font-weight:600}
+.dayhead b::before{content:"💗 "}
+.camrow{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.camrow .mono{flex:1}
+.pmoitem{border-top:1px dashed var(--pink3);padding:7px 0;display:flex;gap:8px;align-items:flex-start}
+.pmoitem:first-of-type{border-top:0}
+.pmoitem .mono{flex:1;white-space:pre-wrap;word-break:break-word}
+
+/* ---------- hoja ---------- */
+.sheetwrap{overflow-x:auto;border:2px solid var(--pink4);border-radius:14px}
+.sheetwrap table{min-width:1700px;font-size:12.5px}
+.sheetwrap td{white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.sheetwrap th{white-space:nowrap;background:var(--pink5);position:sticky;top:0}
+.sheetwrap td.c{text-align:center}
+td.empty{background:var(--warnbg)}
+
+/* ---------- ajustes ---------- */
+details summary{cursor:pointer;font-weight:600;font-size:16px;color:var(--pink);list-style:none}
+details summary::-webkit-details-marker{display:none}
+details[open] summary{margin-bottom:4px}
+.set{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:12px}
+.set label{display:block;font-size:12px;color:var(--ink2);margin-bottom:2px}
+.ck{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--ink)}
+.ck input{width:auto}
+
+/* ---------- capa de decoraciones ---------- */
+#deco{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50}
+.float{
+  position:absolute;bottom:-40px;opacity:0;
+  animation:subir linear forwards;
+}
+.spark{
+  position:fixed;font-size:16px;transform:translate(-50%,-50%);
+  animation:chispa .9s ease-out forwards;text-shadow:0 0 6px rgba(255,255,255,.9);
+}
+.burst{
+  position:fixed;transform:translate(-50%,-50%);
+  animation:estallar 1.1s cubic-bezier(.2,.8,.3,1) forwards;
+}
+
+/* ---------- animaciones ---------- */
+@keyframes subir{
+  0%{opacity:0;transform:translateY(0) translateX(0) rotate(0)}
+  10%{opacity:.85}
+  90%{opacity:.6}
+  100%{opacity:0;transform:translateY(-112vh) translateX(var(--dx)) rotate(40deg)}
+}
+@keyframes chispa{
+  0%{opacity:1;transform:translate(-50%,-50%) scale(.4) rotate(0)}
+  100%{opacity:0;transform:translate(-50%,-10px) scale(1.5) rotate(120deg)}
+}
+@keyframes estallar{
+  0%{opacity:1;transform:translate(-50%,-50%) scale(.3)}
+  100%{opacity:0;transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) scale(1.3) rotate(60deg)}
+}
+@keyframes balanceo{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg) scale(1.08)}}
+@keyframes brillo{to{background-position:250% center}}
+@keyframes titila{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1.25)}}
+@keyframes destello{0%,60%{left:-60%}100%{left:140%}}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
