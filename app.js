@@ -319,8 +319,7 @@ function process() {
   renderCases(); renderOutputs();
 }
 const EJ = `20/11/2026
-07:30am - 08:30am | Resolución del incidente de ayer #IN514759  Validando con Brandon y con Edilberto
-
+07:30am - 08:30am | Resolución del incidente de ayer #IN514759  Validando 
 20/11/2026
 08:30am - 10:00am | Resolución del incidente  #IN514814 en un Espacio con Edi se validó y se dió introducción a SAP.
 
@@ -328,7 +327,7 @@ const EJ = `20/11/2026
 10:00am - 11:30am | Resolución del #SR5120842 valido con Daniel sobre los datos del usuario afectado
 
 20/11/2026
-11:30am - 12:00pm | Visualización de los videos Refuerzo novedades MIGO FS 1 y 2 | Aclaración de dudas con Edilberto y brandon
+11:30am - 12:00pm | Visualización de los videos Refuerzo novedades MIGO FS 1 y 2 | Aclaración de dudas con 
 
 20/11/2026
 12:00pm - 01:00pm | Resolución del incidente #IN514849 error de integración
