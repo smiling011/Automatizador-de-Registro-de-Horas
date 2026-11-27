@@ -6,7 +6,7 @@ const DEFAULTS = {
   negocioCodigo: 'NTSA', negocioSin: 'NETW',
   funcionalSin: 'Camilo Garcia Analista PMO', proyectoSin: 'Servicio al cliente', tipoSin: 'Sin número de gestión',
   estado: 'Finalizado', causa: 'Integraciones', escalo: 'NO', casuistica: 'Configuración', criticidad: 'Baja',
-  camHoras: 4, pmoLJ: 4.5, pmoV: 4, quitarNumeral: true, enterasConDecimal: false,
+  camHoras: 4, pmoLJ: 4.5, pmoV: 4, inicio: 7.5, finLJ: 17, finV: 16.5, quitarNumeral: true, enterasConDecimal: false,
   tipos: {
     IN: { tipo: 'Incidente', proyecto: 'Field Service', camaleom: true },
     SR: { tipo: 'Solicitud de servicio', proyecto: 'Servicio al cliente', camaleom: true }
@@ -107,10 +107,43 @@ function fmtCam(units, cfg) {
 }
 function camLine(r, cfg) { return '(' + fmtCam(r.units, cfg) + ' Horas - ' + r.code + ' )'; }
 function pmoTarget(date, cfg) { return weekday(date) === 5 ? cfg.pmoV : cfg.pmoLJ; }
+function jornada(date, cfg) {
+  return { ini: Math.round(cfg.inicio * 60), fin: Math.round((weekday(date) === 5 ? cfg.finV : cfg.finLJ) * 60) };
+}
+/* huecos libres de la jornada, descontando lo que va a Camaleom */
+function huecosLibres(day, j) {
+  const occ = day.filter(e => e.code && e.type && e.type.camaleom)
+    .map(e => [Math.max(e.start, j.ini), Math.min(e.end, j.fin)]).filter(x => x[1] > x[0]).sort((p, q) => p[0] - q[0]);
+  const gaps = []; let cur = j.ini;
+  occ.forEach(([s, e]) => { if (s > cur) gaps.push([cur, s]); cur = Math.max(cur, e); });
+  if (cur < j.fin) gaps.push([cur, j.fin]);
+  return gaps;
+}
+/* coloca bloques (en minutos) dentro de la jornada, sin pasarse del límite */
+function colocar(durs, pref, gaps, j) {
+  const tryPlace = (from) => {
+    const out = []; let cur = from;
+    for (const d of durs) {
+      let ok = false;
+      for (const [gs, ge] of gaps) {
+        const s = Math.max(gs, cur);
+        if (s + d <= ge) { out.push(s); cur = s + d; ok = true; break; }
+      }
+      if (!ok) return null;
+    }
+    return out;
+  };
+  let r = tryPlace(Math.max(j.ini, pref)) || tryPlace(j.ini);
+  if (r) return { starts: r, overlap: false };
+  const out = []; let cur = j.ini;               // último recurso: ignora Camaleom, nunca la jornada
+  durs.forEach(d => { out.push(cur); cur += d; });
+  return { starts: out, overlap: true };
+}
 function buildPMO(day, cfg) {
   const date = day[0].date, target = pmoTarget(date, cfg), tunits = Math.round(target * 2);
+  const j = jornada(date, cfg);
   let items = day.filter(e => !(e.code && e.type && e.type.camaleom));
-  const res = { date, target, real: 0, items: [], adjusted: false, trimmed: false };
+  const res = { date, target, real: 0, items: [], adjusted: false, moved: false, overlap: false, trimmed: false, j };
   if (!items.length) return res;
   res.real = items.reduce((a, e) => a + e.dur, 0);
   if (items.length > tunits) {
@@ -119,12 +152,15 @@ function buildPMO(day, cfg) {
   }
   const a = allocate(items.map(e => e.dur), tunits, 1);
   const same = items.every((e, i) => Math.abs(a[i] / 2 - e.dur) < 1e-9);
-  if (same) {
+  const dentro = items.every(e => e.start >= j.ini && e.end <= j.fin);
+  if (same && dentro) {
     res.items = items.map(e => ({ date, start: e.start, end: e.end, desc: e.desc, dur: e.dur }));
   } else {
-    res.adjusted = true;
-    let t = items[0].start;
-    res.items = items.map((e, i) => { const s = t; t += a[i] * 30; return { date, start: s, end: t, desc: e.desc, dur: a[i] / 2 }; });
+    res.adjusted = !same; res.moved = same && !dentro;
+    const durs = a.map(u => u * 30);
+    const p = colocar(durs, items[0].start, huecosLibres(day, j), j);
+    res.overlap = p.overlap;
+    res.items = items.map((e, i) => ({ date, start: p.starts[i], end: p.starts[i] + durs[i], desc: e.desc, dur: a[i] / 2 }));
   }
   return res;
 }
@@ -269,7 +305,9 @@ function renderOutputs() {
     pmo.items.forEach(it => {
       h += '<div class="pmoitem"><span class="mono">' + esc(pmoText(it)) + '</span><button class="sm" ' + cp(pmoText(it)) + '>Copiar</button></div>';
     });
-    if (pmo.adjusted) h += '<div class="note" style="margin-top:6px">Tiempo real sin código: ' + fmtNum(pmo.real) + ' h. Se ajustó a ' + fmtNum(pmo.target) + ' h repartiendo el horario.</div>';
+    if (pmo.adjusted) h += '<div class="note" style="margin-top:6px">Tiempo real sin código: ' + fmtNum(pmo.real) + ' h. Se ajustó a ' + fmtNum(pmo.target) + ' h repartiendo el horario dentro de la jornada (' + fmtTime(pmo.j.ini) + ' a ' + fmtTime(pmo.j.fin) + ').</div>';
+    if (pmo.moved) h += '<div class="note" style="margin-top:6px">Se movió al horario laboral (' + fmtTime(pmo.j.ini) + ' a ' + fmtTime(pmo.j.fin) + ').</div>';
+    if (pmo.overlap) h += '<div class="note" style="color:var(--warn)">No había un hueco libre; el horario se cruza con casos de Camaleom.</div>';
     if (pmo.trimmed) h += '<div class="note" style="color:var(--warn)">Hay más actividades que bloques de 0,5 h; se muestran las más largas.</div>';
     h += '</div></div></div>';
   });
@@ -295,7 +333,8 @@ function renderSettings() {
     f('consultor', 'Consultor (correo)') + f('negocioCodigo', 'Negocio con código') + f('negocioSin', 'Negocio sin código') +
     f('funcionalSin', 'Funcional sin código') + f('proyectoSin', 'Proyecto sin código') + f('tipoSin', 'Tipo sin código') +
     f('estado', 'Estado') + f('causa', 'Causa raíz') + f('escalo', '¿Se escaló?') + f('casuistica', 'Casuística') + f('criticidad', 'Criticidad') +
-    f('camHoras', 'Horas Camaleom por día', 1) + f('pmoLJ', 'Horas PMO lunes a jueves', 1) + f('pmoV', 'Horas PMO viernes', 1) + '</div>' +
+    f('camHoras', 'Horas Camaleom por día', 1) + f('pmoLJ', 'Horas PMO lunes a jueves', 1) + f('pmoV', 'Horas PMO viernes', 1) +
+    f('inicio', 'Inicio de jornada (7,5 = 7:30 am)', 1) + f('finLJ', 'Fin lunes a jueves (17 = 5:00 pm)', 1) + f('finV', 'Fin viernes (16,5 = 4:30 pm)', 1) + '</div>' +
     '<div class="row"><label class="ck"><input type="checkbox" data-cfgck="quitarNumeral"' + (c.quitarNumeral ? ' checked' : '') + '> Quitar el # de los códigos en la hoja</label>' +
     '<label class="ck"><input type="checkbox" data-cfgck="enterasConDecimal"' + (c.enterasConDecimal ? ' checked' : '') + '> Camaleom: horas enteras como 1,0</label></div>' +
     '<h2 style="margin-top:16px;font-size:14px">Tipos de código</h2><table><tr><th style="width:70px">Prefijo</th><th>Tipo de requerimiento</th><th>Proyecto</th><th style="width:110px">Va a Camaleom</th><th style="width:40px"></th></tr>';
@@ -319,7 +358,8 @@ function process() {
   renderCases(); renderOutputs();
 }
 const EJ = `20/11/2026
-07:30am - 08:30am | Resolución del incidente de ayer #IN514759  Validando 
+07:30am - 08:30am | Resolución del incidente de ayer #IN514759  Validando con Brandon y con Edilberto
+
 20/11/2026
 08:30am - 10:00am | Resolución del incidente  #IN514814 en un Espacio con Edi se validó y se dió introducción a SAP.
 
@@ -327,7 +367,7 @@ const EJ = `20/11/2026
 10:00am - 11:30am | Resolución del #SR5120842 valido con Daniel sobre los datos del usuario afectado
 
 20/11/2026
-11:30am - 12:00pm | Visualización de los videos Refuerzo novedades MIGO FS 1 y 2 | Aclaración de dudas con 
+11:30am - 12:00pm | Visualización de los videos Refuerzo novedades MIGO FS 1 y 2 | Aclaración de dudas con Edilberto y brandon
 
 20/11/2026
 12:00pm - 01:00pm | Resolución del incidente #IN514849 error de integración
