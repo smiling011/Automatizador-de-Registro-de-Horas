@@ -6,7 +6,8 @@ const DEFAULTS = {
   negocioCodigo: 'NTSA', negocioSin: 'NETW',
   funcionalSin: 'Camilo Garcia Analista PMO', proyectoSin: 'Servicio al cliente', tipoSin: 'Sin número de gestión',
   estado: 'Finalizado', causa: 'Integraciones', escalo: 'NO', casuistica: 'Configuración', criticidad: 'Baja',
-  camHoras: 4, pmoLJ: 4.5, pmoV: 4, inicio: 7.5, finLJ: 17, finV: 16.5, quitarNumeral: true, enterasConDecimal: false,
+  camHoras: 4, pmoLJ: 4.5, pmoV: 4, inicio: 7.5, finLJ: 17, finV: 16.5,
+  procesos: ['Flujos', 'Clases APEX', 'LWC', 'Configuracion'], procesoDef: 'Configuracion', matrizPref: ['IN', 'SR'], iaList: ['Agent Vibes', 'Coworker', 'Claude'], quitarNumeral: true, enterasConDecimal: false,
   tipos: {
     IN: { tipo: 'Incidente', proyecto: 'Field Service', camaleom: true },
     SR: { tipo: 'Solicitud de servicio', proyecto: 'Servicio al cliente', camaleom: true }
@@ -189,6 +190,41 @@ function buildSheet(entries, cfg, cases, labels) {
     return { row: r, e };
   });
 }
+/* ---- matriz de IA ---- */
+const MCOLS = ['Tipo de gestion', '# de gestion', 'Proceso', 'Responsable', 'Tiempo estimado', 'IA utilizada', 'Ahorro en horas', 'Ahorro en porcentaje'];
+/* txt: "10" o "10%" = % del tiempo del caso que ahorró la IA; "0,2h" = horas directas */
+function fmtAh(v) { return Number.isInteger(v) ? String(v) : v.toFixed(1).replace('.', ','); }
+function calcAhorro(real, txt) {
+  txt = String(txt || '').trim().toLowerCase().replace(',', '.').replace(/\s+/g, '');
+  if (!txt) return null;
+  let pct, horas;
+  if (txt.endsWith('h')) {
+    horas = parseFloat(txt); if (!(horas >= 0)) return null;
+    horas = Math.round(horas * 10 + 1e-9) / 10; pct = Math.min(100, Math.round(horas / real * 100));
+  } else {
+    pct = parseFloat(txt); if (!(pct >= 0 && pct <= 100)) return null;
+    pct = Math.round(pct); horas = Math.round(real * pct / 100 * 10 + 1e-9) / 10;
+  }
+  return { ahorro: horas, pct };
+}
+function buildMatriz(entries, cfg, mx) {
+  const map = new Map();
+  entries.forEach(e => {
+    if (!e.code || !e.type || cfg.matrizPref.indexOf(e.prefix) < 0) return;
+    const k = e.code + '|' + e.date;
+    const g = map.get(k) || { key: k, code: e.code, date: e.date, tipo: e.type.tipo, dur: 0 };
+    g.dur += e.dur; map.set(k, g);
+  });
+  return [...map.values()]
+    .sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)) || a.code.localeCompare(b.code))
+    .map(g => {
+      const m = mx[g.key] || {};
+      const proceso = m.proceso || cfg.procesoDef, ia = m.ia || '';
+      const calc = ia ? calcAhorro(g.dur, m.sin) : null;
+      return { g, proceso, ia, sin: m.sin || '', calc,
+        row: [g.tipo, g.code, proceso, cfg.consultor, fmtNum(g.dur), ia, calc ? fmtAh(calc.ahorro) : '', calc ? String(calc.pct) : ''] };
+    });
+}
 /*LOGIC_END*/
 
 /* ---------- almacenamiento ---------- */
@@ -201,7 +237,7 @@ function loadCfg() {
   c.tipos = Object.assign({}, DEFAULTS.tipos, s.tipos || {});
   return c;
 }
-const S = { cfg: loadCfg(), cases: load('cases', {}), entries: [], errors: [], labels: {}, camOv: {}, copy: [] };
+const S = { cfg: loadCfg(), cases: load('cases', {}), entries: [], errors: [], labels: {}, camOv: {}, copy: [], copy2: [], mx: load('mx', {}) };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -325,6 +361,48 @@ function renderOutputs() {
   el.innerHTML = h;
 }
 
+/* ---------- matriz de IA ---------- */
+function cp2(text) { S.copy2.push(text); return 'data-cp2="' + (S.copy2.length - 1) + '"'; }
+function renderMatriz() {
+  const el = $('s4');
+  const rows = buildMatriz(S.entries, S.cfg, S.mx);
+  if (!rows.length) { el.innerHTML = ''; return; }
+  const sel = (key, f, val, opts, blank) => {
+    const list = opts.indexOf(val) < 0 && val ? opts.concat(val) : opts;
+    return '<select data-mx="' + esc(key) + '" data-mf="' + f + '">' + (blank ? '<option value="">' + blank + '</option>' : '') +
+      list.map(o => '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select>';
+  };
+  let h = '<div class="card"><h2>Matriz de IA <small>sale de los casos con código; una fila por caso y día</small></h2>' +
+    '<div class="note" style="margin-bottom:10px">Si usaste IA en el caso, escribe el porcentaje del tiempo que te ahorró (<span class="mono">10</span>, <span class="mono">20</span>…). Las horas de ahorro salen de aplicar ese porcentaje al tiempo del caso. También puedes escribir horas directas con una h (<span class="mono">0,2h</span>). Si no usaste IA, deja “ninguna” y el ahorro sale vacío.</div>' +
+    '<div style="overflow-x:auto"><table><tr><th>Fecha</th><th>Caso</th><th>Tiempo</th><th>Proceso</th><th>IA utilizada</th><th style="width:130px">% de ahorro</th><th>Ahorro</th><th>%</th></tr>';
+  rows.forEach((r, i) => {
+    h += '<tr><td class="note">' + r.g.date + '</td><td class="mono">' + r.g.code + '</td><td>' + fmtNum(r.g.dur) + '</td>' +
+      '<td>' + sel(r.g.key, 'proceso', r.proceso, S.cfg.procesos) + '</td>' +
+      '<td>' + sel(r.g.key, 'ia', r.ia, S.cfg.iaList, 'ninguna') + '</td>' +
+      '<td><input type="text" data-mx="' + esc(r.g.key) + '" data-mf="sin" value="' + esc(r.sin) + '" placeholder="ej. 10"></td>' +
+      '<td id="mxa' + i + '"></td><td id="mxp' + i + '"></td></tr>';
+  });
+  h += '</table></div><div id="mxOut" style="margin-top:14px"></div></div>';
+  el.innerHTML = h; updateMxOut();
+}
+function updateMxOut() {
+  const out = $('mxOut'); if (!out) return;
+  S.copy2 = [];
+  const rows = buildMatriz(S.entries, S.cfg, S.mx);
+  rows.forEach((r, i) => {
+    const a = $('mxa' + i), p = $('mxp' + i);
+    if (a) a.textContent = r.calc ? fmtAh(r.calc.ahorro) : '';
+    if (p) p.textContent = r.calc ? String(r.calc.pct) : '';
+  });
+  const faltan = rows.filter(r => r.ia && !r.calc).length;
+  let h = faltan ? '<div class="banner">En ' + faltan + ' caso(s) elegiste IA pero falta el % de ahorro; el ahorro saldrá vacío.</div>' : '';
+  h += '<h3 style="margin:0 0 8px;font-size:14px;color:var(--pink)">Para pegar en la matriz <button class="sm" style="margin-left:10px" ' + cp2(rows.map(r => r.row.join('\t')).join('\n')) + '>Copiar todas las filas</button></h3>';
+  h += '<div class="sheetwrap"><table style="min-width:900px"><tr>' + MCOLS.map((c, i) => '<th>' + c + '<br><button class="sm" ' + cp2(rows.map(r => r.row[i]).join('\n')) + '>Copiar columna</button></th>').join('') + '</tr>';
+  rows.forEach(r => { h += '<tr>' + r.row.map((v, i) => '<td' + (i === 4 || i >= 6 ? ' class="c"' : '') + ' title="' + esc(v) + '">' + esc(v) + '</td>').join('') + '</tr>'; });
+  h += '</table></div>';
+  out.innerHTML = h;
+}
+
 /* ---------- ajustes ---------- */
 function renderSettings() {
   const c = S.cfg;
@@ -334,7 +412,10 @@ function renderSettings() {
     f('funcionalSin', 'Funcional sin código') + f('proyectoSin', 'Proyecto sin código') + f('tipoSin', 'Tipo sin código') +
     f('estado', 'Estado') + f('causa', 'Causa raíz') + f('escalo', '¿Se escaló?') + f('casuistica', 'Casuística') + f('criticidad', 'Criticidad') +
     f('camHoras', 'Horas Camaleom por día', 1) + f('pmoLJ', 'Horas PMO lunes a jueves', 1) + f('pmoV', 'Horas PMO viernes', 1) +
-    f('inicio', 'Inicio de jornada (7,5 = 7:30 am)', 1) + f('finLJ', 'Fin lunes a jueves (17 = 5:00 pm)', 1) + f('finV', 'Fin viernes (16,5 = 4:30 pm)', 1) + '</div>' +
+    f('inicio', 'Inicio de jornada (7,5 = 7:30 am)', 1) + f('finLJ', 'Fin lunes a jueves (17 = 5:00 pm)', 1) + f('finV', 'Fin viernes (16,5 = 4:30 pm)', 1) + f('procesoDef', 'Proceso por defecto (matriz de IA)') +
+    '<div><label>Procesos (separados por coma)</label><input type="text" data-cfglist="procesos" value="' + esc(c.procesos.join(', ')) + '"></div>' +
+    '<div><label>Prefijos que van a la matriz de IA</label><input type="text" data-cfglist="matrizPref" value="' + esc(c.matrizPref.join(', ')) + '"></div>' +
+    '<div><label>IA disponibles (igual que en la matriz)</label><input type="text" data-cfglist="iaList" value="' + esc(c.iaList.join(', ')) + '"></div></div>' +
     '<div class="row"><label class="ck"><input type="checkbox" data-cfgck="quitarNumeral"' + (c.quitarNumeral ? ' checked' : '') + '> Quitar el # de los códigos en la hoja</label>' +
     '<label class="ck"><input type="checkbox" data-cfgck="enterasConDecimal"' + (c.enterasConDecimal ? ' checked' : '') + '> Camaleom: horas enteras como 1,0</label></div>' +
     '<h2 style="margin-top:16px;font-size:14px">Tipos de código</h2><table><tr><th style="width:70px">Prefijo</th><th>Tipo de requerimiento</th><th>Proyecto</th><th style="width:110px">Va a Camaleom</th><th style="width:40px"></th></tr>';
@@ -355,7 +436,7 @@ function process() {
   const r = parseLog(text);
   S.entries = enrich(r.entries, S.cfg); S.errors = r.errors; S.camOv = {};
   $('procMsg').textContent = S.entries.length ? S.entries.length + ' actividad(es) en ' + new Set(S.entries.map(e => e.date)).size + ' día(s)' : (text.trim() ? 'No encontré actividades' : '');
-  renderCases(); renderOutputs();
+  renderCases(); renderOutputs(); renderMatriz();
 }
 const EJ = `20/11/2026
 07:30am - 08:30am | Resolución del incidente de ayer #IN514759  Validando con Brandon y con Edilberto
@@ -382,6 +463,7 @@ const EJ = `20/11/2026
 document.addEventListener('click', ev => {
   const t = ev.target.closest('button'); if (!t) return;
   if (t.dataset.cp != null) { copyText(S.copy[+t.dataset.cp], t); return; }
+  if (t.dataset.cp2 != null) { copyText(S.copy2[+t.dataset.cp2], t); return; }
   if (t.dataset.adj) {
     const d = t.dataset.day, code = t.dataset.code, step = +t.dataset.adj;
     const day = S.entries.filter(e => e.date === d);
@@ -418,9 +500,11 @@ document.addEventListener('input', ev => {
   if (t.dataset.cfg) {
     const k = t.dataset.cfg; let v = t.value;
     if (t.dataset.num) { v = parseFloat(v.replace(',', '.')); if (!(v > 0)) return; }
-    S.cfg[k] = v; saveCfg(); renderOutputs(); return;
+    S.cfg[k] = v; saveCfg(); renderOutputs(); renderMatriz(); return;
   }
-  if (t.dataset.tp) { S.cfg.tipos[t.dataset.tp][t.dataset.tf] = t.value; saveCfg(); renderOutputs(); return; }
+  if (t.dataset.cfglist) { S.cfg[t.dataset.cfglist] = t.value.split(',').map(x => t.dataset.cfglist === 'matrizPref' ? x.trim().toUpperCase() : x.trim()).filter(Boolean); saveCfg(); renderMatriz(); return; }
+  if (t.dataset.mx) { const m = S.mx[t.dataset.mx] = S.mx[t.dataset.mx] || {}; m[t.dataset.mf] = t.value.trim(); save('mx', S.mx); updateMxOut(); return; }
+  if (t.dataset.tp) { S.cfg.tipos[t.dataset.tp][t.dataset.tf] = t.value; saveCfg(); renderOutputs(); renderMatriz(); return; }
   if (t.id === 'log') { clearTimeout(window._d); window._d = setTimeout(process, 500); }
 });
 document.addEventListener('change', ev => {
@@ -493,7 +577,7 @@ process();
   }
   document.addEventListener('click', e => {
     const b = e.target.closest('button');
-    if (b && b.dataset.cp != null) explosion(e.clientX, e.clientY, 16, ['💖', '✨', '🎀', '💗', '⭐']);
+    if (b && (b.dataset.cp != null || b.dataset.cp2 != null)) explosion(e.clientX, e.clientY, 16, ['💖', '✨', '🎀', '💗', '⭐']);
     else if (b && b.id === 'btnProc') explosion(e.clientX, e.clientY, 22, ['💖', '✨', '💕', '🌸']);
     else if (!b) explosion(e.clientX, e.clientY, 5, ['💗', '✨']);
   });
